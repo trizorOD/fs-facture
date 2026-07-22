@@ -169,12 +169,19 @@ class Organization_FSFacture extends AbstractClassFSFacture {
         $existing_keys = [];
         $existing_ids = get_posts([
             'post_type' => self::CPT_SLUG,
-            'post_status' => 'publish',
+            'post_status' => 'any',
             'numberposts' => -1,
             'fields' => 'ids',
         ]);
 
         foreach ($existing_ids as $org_id) {
+            $stored_key = get_post_meta($org_id, '_fs_org_group_key', true);
+
+            if ($stored_key !== '') {
+                $existing_keys[$stored_key] = true;
+                continue;
+            }
+
             $key = Buyer_Data_Helper::get_buyer_group_key([
                 'buyer_nip' => get_field('org_nip', $org_id),
                 'buyer_organization' => get_the_title($org_id),
@@ -220,6 +227,7 @@ class Organization_FSFacture extends AbstractClassFSFacture {
             update_field('org_street', $buyer_group['buyer_street'] ?? ($buyer_group['buyer_address'] ?? ''), $org_id);
             update_field('org_city', $buyer_group['buyer_city'] ?? '', $org_id);
             update_field('org_postal_code', $buyer_group['buyer_postal_code'] ?? '', $org_id);
+            update_post_meta($org_id, '_fs_org_group_key', $key);
 
             $created++;
         }
