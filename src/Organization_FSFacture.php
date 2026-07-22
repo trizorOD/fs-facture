@@ -220,9 +220,11 @@ class Organization_FSFacture extends AbstractClassFSFacture {
                 continue;
             }
 
+            $street = !empty($buyer_group['buyer_street']) ? $buyer_group['buyer_street'] : ($buyer_group['buyer_address'] ?? '');
+
             update_field('org_nip', $buyer_group['buyer_nip'] ?? '', $org_id);
             update_field('org_country_code', $buyer_group['buyer_country_code'] ?? '', $org_id);
-            update_field('org_street', $buyer_group['buyer_street'] ?? ($buyer_group['buyer_address'] ?? ''), $org_id);
+            update_field('org_street', $street, $org_id);
             update_field('org_city', $buyer_group['buyer_city'] ?? '', $org_id);
             update_field('org_postal_code', $buyer_group['buyer_postal_code'] ?? '', $org_id);
             update_post_meta($org_id, '_fs_org_group_key', $key);
