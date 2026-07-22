@@ -46,13 +46,11 @@ class Organization_FSFacture extends AbstractClassFSFacture {
             'public'             => false,
             'publicly_queryable' => false,
             'show_ui'            => true,
-            'show_in_menu'       => true,
+            'show_in_menu'       => 'edit.php?post_type=factures',
             'query_var'          => false,
             'rewrite'            => false,
             'capability_type'    => 'post',
             'has_archive'        => false,
-            'menu_position'      => 6,
-            'menu_icon'          => 'dashicons-building',
             'supports'           => ['title'],
             'show_in_rest'       => false,
         ]);
@@ -79,7 +77,7 @@ class Organization_FSFacture extends AbstractClassFSFacture {
             ]);
         }
 
-        if ($hook === self::CPT_SLUG . '_page_' . self::IMPORT_PAGE_SLUG) {
+        if ($hook === 'factures_page_' . self::IMPORT_PAGE_SLUG) {
             $script_path = dirname(__DIR__) . '/assets/admin/organization-import.js';
 
             wp_enqueue_script(
@@ -105,7 +103,7 @@ class Organization_FSFacture extends AbstractClassFSFacture {
 
     public function register_import_page() {
         add_submenu_page(
-            'edit.php?post_type=' . self::CPT_SLUG,
+            'edit.php?post_type=factures',
             __('Import from Factures', 'fs-facture'),
             __('Import from Factures', 'fs-facture'),
             'edit_posts',
