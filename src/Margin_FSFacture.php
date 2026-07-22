@@ -188,13 +188,13 @@ class Margin_FSFacture extends AbstractClassFSFacture {
     private function get_buyer_organization_groups() {
         $groups = [];
 
-        foreach ($this->get_facture_ids() as $post_id) {
-            $facture_data = $this->get_facture_data($post_id);
+        foreach (Buyer_Data_Helper::get_facture_ids() as $post_id) {
+            $facture_data = Buyer_Data_Helper::get_facture_data($post_id);
             $buyer_group = isset($facture_data['buyer_group']) && is_array($facture_data['buyer_group'])
                 ? $facture_data['buyer_group']
                 : [];
-            $group_key = $this->get_buyer_group_key($buyer_group);
-            $organization = isset($buyer_group['buyer_organization']) ? $this->normalize_organization_label($buyer_group['buyer_organization']) : '';
+            $group_key = Buyer_Data_Helper::get_buyer_group_key($buyer_group);
+            $organization = isset($buyer_group['buyer_organization']) ? Buyer_Data_Helper::normalize_organization_label($buyer_group['buyer_organization']) : '';
 
             if ($group_key === '' || $organization === '') {
                 continue;
@@ -238,8 +238,8 @@ class Margin_FSFacture extends AbstractClassFSFacture {
         $skipped_factures = 0;
         $buyer_details = [];
         $import_product_ids = $import_only ? $this->get_import_product_ids() : [];
-        $date_from = $this->normalize_date($date_from);
-        $date_to = $this->normalize_date($date_to);
+        $date_from = Buyer_Data_Helper::normalize_date($date_from);
+        $date_to = Buyer_Data_Helper::normalize_date($date_to);
 
         if ($date_from && $date_to && $date_from > $date_to) {
             $tmp = $date_from;
@@ -247,12 +247,12 @@ class Margin_FSFacture extends AbstractClassFSFacture {
             $date_to = $tmp;
         }
 
-        $facture_ids = $this->get_facture_ids();
+        $facture_ids = Buyer_Data_Helper::get_facture_ids();
         $corrected_facture_signatures = $this->get_corrected_facture_signatures($facture_ids);
 
         foreach ($facture_ids as $post_id) {
             $facture = get_post($post_id);
-            $facture_data = $this->get_facture_data($post_id);
+            $facture_data = Buyer_Data_Helper::get_facture_data($post_id);
 
             if (!$facture || empty($facture_data)) {
                 $skipped_factures++;
@@ -262,7 +262,7 @@ class Margin_FSFacture extends AbstractClassFSFacture {
             $buyer_group = isset($facture_data['buyer_group']) && is_array($facture_data['buyer_group'])
                 ? $facture_data['buyer_group']
                 : [];
-            $facture_date = $this->get_facture_date($facture, $facture_data);
+            $facture_date = Buyer_Data_Helper::get_facture_date($facture, $facture_data);
 
             if ($facture->post_status !== 'facture_corrective') {
                 $facture_signature = $this->get_facture_signature($facture, $facture_data);
@@ -296,7 +296,7 @@ class Margin_FSFacture extends AbstractClassFSFacture {
 
             $invoice_number = $this->get_invoice_number($facture, $facture_data);
             $buyer_label = isset($buyer_group['buyer_organization'])
-                ? $this->normalize_organization_label($buyer_group['buyer_organization'])
+                ? Buyer_Data_Helper::normalize_organization_label($buyer_group['buyer_organization'])
                 : '';
             $global_discount = isset($products_group['discount_to_all_products'])
                 ? $this->to_float($products_group['discount_to_all_products'])
@@ -544,18 +544,6 @@ class Margin_FSFacture extends AbstractClassFSFacture {
         ];
     }
 
-    private function get_facture_ids() {
-        return get_posts([
-            'post_type' => 'factures',
-            'post_status' => ['publish', 'facture_current', 'facture_corrective'],
-            'numberposts' => -1,
-            'fields' => 'ids',
-            'orderby' => 'date',
-            'order' => 'DESC',
-            'no_found_rows' => true,
-        ]);
-    }
-
     private function get_import_product_ids() {
         $term = get_term_by('name', 'Import', 'product_tag');
         if (!$term) {
@@ -581,10 +569,6 @@ class Margin_FSFacture extends AbstractClassFSFacture {
         ]);
 
         return array_fill_keys(array_map('intval', $ids), true);
-    }
-
-    private function get_facture_data($post_id) {
-        return function_exists('get_field') ? get_field('facture_group', $post_id) : [];
     }
 
     private function get_corrected_facture_signatures($facture_ids) {
@@ -619,7 +603,7 @@ class Margin_FSFacture extends AbstractClassFSFacture {
         $buyer_group = isset($facture_data['buyer_group']) && is_array($facture_data['buyer_group'])
             ? $facture_data['buyer_group']
             : [];
-        $buyer_key = $this->get_buyer_group_key($buyer_group);
+        $buyer_key = Buyer_Data_Helper::get_buyer_group_key($buyer_group);
         $invoice_number = $this->get_invoice_number($facture, $facture_data);
 
         if ($buyer_key === '' || $invoice_number === '') {
@@ -641,27 +625,6 @@ class Margin_FSFacture extends AbstractClassFSFacture {
         return $facture->ID . '/' . date('Y', strtotime($facture->post_date));
     }
 
-    private function get_buyer_group_key($buyer_group) {
-        if (!is_array($buyer_group)) {
-            return '';
-        }
-
-        $nip = isset($buyer_group['buyer_nip']) ? $this->clean_tax_id($buyer_group['buyer_nip']) : '';
-        if ($nip !== '') {
-            return 'nip_' . $nip;
-        }
-
-        $organization = isset($buyer_group['buyer_organization'])
-            ? $this->normalize_organization_key($buyer_group['buyer_organization'])
-            : '';
-
-        if ($organization === '') {
-            return '';
-        }
-
-        return 'org_' . md5($organization);
-    }
-
     private function buyer_matches_filter($filter, $buyer_group) {
         $filter = trim((string) $filter);
 
@@ -673,21 +636,21 @@ class Margin_FSFacture extends AbstractClassFSFacture {
             return false;
         }
 
-        $group_key = $this->get_buyer_group_key($buyer_group);
+        $group_key = Buyer_Data_Helper::get_buyer_group_key($buyer_group);
         if ($group_key !== '' && hash_equals($group_key, $filter)) {
             return true;
         }
 
-        $filter_tax_id = $this->clean_tax_id($filter);
-        $buyer_tax_id = isset($buyer_group['buyer_nip']) ? $this->clean_tax_id($buyer_group['buyer_nip']) : '';
+        $filter_tax_id = Buyer_Data_Helper::clean_tax_id($filter);
+        $buyer_tax_id = isset($buyer_group['buyer_nip']) ? Buyer_Data_Helper::clean_tax_id($buyer_group['buyer_nip']) : '';
         if ($filter_tax_id !== '' && $buyer_tax_id !== '' && $filter_tax_id === $buyer_tax_id) {
             return true;
         }
 
         $buyer_organization = isset($buyer_group['buyer_organization'])
-            ? $this->normalize_organization_key($buyer_group['buyer_organization'])
+            ? Buyer_Data_Helper::normalize_organization_key($buyer_group['buyer_organization'])
             : '';
-        $filter_organization = $this->normalize_organization_key($filter);
+        $filter_organization = Buyer_Data_Helper::normalize_organization_key($filter);
 
         return $buyer_organization !== '' && $filter_organization !== '' && $buyer_organization === $filter_organization;
     }
@@ -697,14 +660,14 @@ class Margin_FSFacture extends AbstractClassFSFacture {
             return;
         }
 
-        $organization = isset($buyer_group['buyer_organization']) ? $this->normalize_organization_label($buyer_group['buyer_organization']) : '';
-        $nip = isset($buyer_group['buyer_nip']) ? $this->clean_tax_id($buyer_group['buyer_nip']) : '';
+        $organization = isset($buyer_group['buyer_organization']) ? Buyer_Data_Helper::normalize_organization_label($buyer_group['buyer_organization']) : '';
+        $nip = isset($buyer_group['buyer_nip']) ? Buyer_Data_Helper::clean_tax_id($buyer_group['buyer_nip']) : '';
         $country = isset($buyer_group['buyer_country_code']) ? strtoupper(trim((string) $buyer_group['buyer_country_code'])) : '';
         $address_parts = [
             $buyer_group['buyer_street'] ?? ($buyer_group['buyer_address'] ?? ''),
             trim(($buyer_group['buyer_postal_code'] ?? '') . ' ' . ($buyer_group['buyer_city'] ?? '')),
         ];
-        $address = $this->normalize_organization_label(implode(' ', array_filter($address_parts)));
+        $address = Buyer_Data_Helper::normalize_organization_label(implode(' ', array_filter($address_parts)));
         $invoice = $this->get_invoice_number($facture, $facture_data);
 
         if ($organization !== '') {
@@ -757,69 +720,6 @@ class Margin_FSFacture extends AbstractClassFSFacture {
             'addresses' => $details['addresses'],
             'factures' => $details['factures'],
         ];
-    }
-
-    private function get_facture_date($facture, $facture_data) {
-        $general_group = isset($facture_data['general_group']) && is_array($facture_data['general_group'])
-            ? $facture_data['general_group']
-            : [];
-        $date = !empty($general_group['general_facture_date'])
-            ? $general_group['general_facture_date']
-            : $facture->post_date;
-
-        return $this->normalize_date($date);
-    }
-
-    private function normalize_date($date) {
-        $date = trim((string) $date);
-        if ($date === '') {
-            return '';
-        }
-
-        $timestamp = strtotime($date);
-        if (!$timestamp) {
-            return '';
-        }
-
-        return date('Y-m-d', $timestamp);
-    }
-
-    private function clean_tax_id($value) {
-        return preg_replace('/\D+/', '', (string) $value);
-    }
-
-    private function normalize_organization_label($value) {
-        $value = trim((string) $value);
-        $value = preg_replace('/\s+/u', ' ', $value);
-
-        return trim($value);
-    }
-
-    private function normalize_organization_key($value) {
-        $value = trim((string) $value);
-
-        if (preg_match('/\R/', $value)) {
-            $lines = preg_split('/\R/u', $value);
-            $has_address_line = false;
-
-            foreach (array_slice($lines, 1) as $line) {
-                if (preg_match('/\d{2}-\d{3}|\d/', $line)) {
-                    $has_address_line = true;
-                    break;
-                }
-            }
-
-            if ($has_address_line && trim($lines[0]) !== '') {
-                $value = $lines[0];
-            }
-        }
-
-        $value = $this->normalize_organization_label($value);
-        $value = function_exists('mb_strtoupper') ? mb_strtoupper($value, 'UTF-8') : strtoupper($value);
-        $value = preg_replace('/[^\p{L}\p{N}]+/u', ' ', $value);
-        $value = preg_replace('/\s+/u', ' ', $value);
-
-        return trim($value);
     }
 
     private function apply_discount($price, $discount) {
