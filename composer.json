@@ -1,0 +1,18 @@
+{
+    "name": "finespirits/fs-facture",
+    "description": "Creates Factures",
+    "autoload": {
+        "psr-4": {
+            "Finespirits\\FsFacture\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Finespirits"
+        }
+    ],
+    "require": {
+        "mpdf/mpdf": "^8.2",
+        "kwn/number-to-words": "^2.11"
+    }
+}

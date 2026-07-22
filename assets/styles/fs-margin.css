@@ -1,0 +1,353 @@
+.fs-margin-page {
+    color: #1d2327;
+}
+
+.fs-margin-page [hidden] {
+    display: none !important;
+}
+
+.fs-margin-hero {
+    display: flex;
+    justify-content: space-between;
+    gap: 24px;
+    align-items: center;
+    margin: 22px 0 18px;
+    padding: 28px;
+    border: 1px solid #dcdcde;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #ffffff 0%, #f4f8fb 100%);
+    box-shadow: 0 12px 30px rgba(30, 42, 56, 0.06);
+}
+
+.fs-margin-hero h1 {
+    margin: 4px 0 8px;
+    font-size: 30px;
+    line-height: 1.15;
+}
+
+.fs-margin-hero p {
+    max-width: 680px;
+    margin: 0;
+    color: #50575e;
+    font-size: 14px;
+}
+
+.fs-margin-eyebrow {
+    color: #0a6f68 !important;
+    font-size: 12px !important;
+    font-weight: 700;
+    letter-spacing: 0 !important;
+    text-transform: uppercase;
+}
+
+.fs-margin-hero-stat {
+    min-width: 170px;
+    padding: 18px;
+    border-radius: 8px;
+    background: #14332f;
+    color: #fff;
+    text-align: center;
+}
+
+.fs-margin-hero-stat span {
+    display: block;
+    font-size: 34px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.fs-margin-hero-stat small {
+    display: block;
+    margin-top: 7px;
+    color: #c7ded9;
+}
+
+.fs-margin-toolbar {
+    padding: 18px;
+    border: 1px solid #dcdcde;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.fs-margin-toolbar label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 700;
+}
+
+.fs-margin-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    --fs-control-height: 36px;
+    --fs-control-border: #8c8f94;
+    --fs-control-radius: 4px;
+}
+
+.fs-margin-controls select {
+    width: min(520px, 100%);
+    max-width: 100%;
+}
+
+.fs-margin-controls .select2-container {
+    width: min(520px, 100%) !important;
+    max-width: 100%;
+}
+
+.fs-margin-controls .select2-container .select2-selection--single {
+    height: var(--fs-control-height);
+    border: 1px solid var(--fs-control-border);
+    border-radius: var(--fs-control-radius);
+}
+
+.fs-margin-controls .select2-container .select2-selection--single .select2-selection__rendered {
+    line-height: calc(var(--fs-control-height) - 2px);
+    padding-left: 10px;
+    padding-right: 28px;
+}
+
+.fs-margin-controls .select2-container .select2-selection--single .select2-selection__arrow {
+    height: calc(var(--fs-control-height) - 2px);
+}
+
+.fs-margin-date-field {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.fs-margin-date-field span {
+    color: #646970;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.fs-margin-date-field input {
+    width: 142px;
+    min-height: var(--fs-control-height);
+    border-color: var(--fs-control-border);
+    border-radius: var(--fs-control-radius);
+    line-height: calc(var(--fs-control-height) - 2px);
+}
+
+.fs-margin-checkbox-field {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 7px;
+    min-height: var(--fs-control-height);
+    margin: 0 !important;
+    color: #1d2327;
+    font-weight: 700 !important;
+}
+
+.fs-margin-checkbox-field input {
+    margin: 0;
+}
+
+.fs-margin-loader {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 16px;
+    padding: 14px 16px;
+    border: 1px solid #b7d6d2;
+    border-radius: 8px;
+    background: #f1fbf9;
+}
+
+.fs-margin-loader span {
+    width: 18px;
+    height: 18px;
+    border: 3px solid #b7d6d2;
+    border-top-color: #0a6f68;
+    border-radius: 50%;
+    animation: fs-margin-spin 0.75s linear infinite;
+}
+
+.fs-margin-message {
+    margin-top: 16px;
+    padding: 14px 16px;
+    border-left: 4px solid #0a6f68;
+    background: #fff;
+}
+
+.fs-margin-message.is-error {
+    border-left-color: #b32d2e;
+}
+
+.fs-margin-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin: 16px 0;
+}
+
+.fs-margin-card {
+    padding: 16px;
+    border: 1px solid #dcdcde;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.fs-margin-card span {
+    display: block;
+    color: #646970;
+    font-size: 12px;
+}
+
+.fs-margin-card strong {
+    display: block;
+    margin-top: 8px;
+    font-size: 20px;
+}
+
+.fs-margin-details {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(240px, 1fr));
+    gap: 12px;
+    margin: 0 0 16px;
+}
+
+.fs-margin-details div {
+    padding: 14px 16px;
+    border: 1px solid #dcdcde;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.fs-margin-details span {
+    display: block;
+    margin-bottom: 6px;
+    color: #646970;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.fs-margin-details p {
+    margin: 0;
+    line-height: 1.5;
+}
+
+.fs-margin-table-wrap {
+    margin-top: 16px;
+    overflow-x: auto;
+    border: 1px solid #dcdcde;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.fs-margin-table {
+    border: 0;
+}
+
+.fs-margin-table th,
+.fs-margin-table td {
+    padding: 12px;
+    vertical-align: middle;
+}
+
+.fs-margin-table td strong {
+    display: block;
+}
+
+.fs-margin-table td small {
+    display: block;
+    margin-top: 4px;
+    color: #646970;
+}
+
+.fs-margin-table tr.fs-margin-invoice-row td {
+    padding: 16px 14px;
+    border-top: 2px solid #14332f;
+    background: #edf5f3;
+}
+
+.fs-margin-table tr.fs-margin-invoice-row strong {
+    font-size: 15px;
+}
+
+.fs-margin-table tr.fs-margin-corrective-row td {
+    border-top-color: #8a5a00;
+    background: #fff7e6;
+}
+
+.fs-margin-table tr.fs-margin-subtotal-row td {
+    border-top: 1px solid #b7d6d2;
+    border-bottom: 12px solid #fff;
+    background: #f7fbfa;
+    font-weight: 700;
+}
+
+.fs-margin-table tr.is-inactive {
+    color: #8c8f94;
+    background: #f6f7f7;
+}
+
+.fs-margin-table tr.is-excluded {
+    color: #7a4b00;
+    background: #fff8e5;
+}
+
+.fs-margin-table .is-positive {
+    color: #008a20;
+    font-weight: 700;
+}
+
+.fs-margin-table .is-negative {
+    color: #b32d2e;
+    font-weight: 700;
+}
+
+.fs-margin-table tfoot th {
+    background: #f0f6f5;
+    font-weight: 700;
+}
+
+.fs-settings-panel {
+    margin-bottom: 16px;
+}
+
+.fs-settings-panel .description {
+    margin: 10px 0 0;
+}
+
+.fs-settings-add-row select {
+    min-width: min(520px, 100%);
+}
+
+.fs-settings-table td:last-child,
+.fs-settings-table th:last-child {
+    width: 130px;
+    text-align: right;
+}
+
+.fs-settings-empty-row td {
+    color: #646970;
+}
+
+@keyframes fs-margin-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (max-width: 782px) {
+    .fs-margin-hero,
+    .fs-margin-controls {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .fs-margin-hero-stat {
+        min-width: 0;
+    }
+
+    .fs-margin-summary {
+        grid-template-columns: 1fr;
+    }
+
+    .fs-margin-details {
+        grid-template-columns: 1fr;
+    }
+}

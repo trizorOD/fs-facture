@@ -1,0 +1,6 @@
+# Extracting remaining endpoints systematically
+
+# Get all paths with their methods
+curl -s "https://api-test.ksef.mf.gov.pl/docs/v2/openapi.json" | \
+  grep -E '^\s*"/(sessions|invoices|tokens|peppol|permissions)' | \
+  head -100
