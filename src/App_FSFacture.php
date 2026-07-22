@@ -7,18 +7,20 @@ use Finespirits\FsFacture\ACF_FSFacture;
 use Finespirits\FsFacture\XML_FSFacture;
 use Finespirits\FsFacture\Margin_FSFacture;
 use Finespirits\FsFacture\Settings_FSFacture;
+use Finespirits\FsFacture\Organization_FSFacture;
 use Finespirits\FsFacture\AbstractClassFSFacture;
 
 if (!defined('ABSPATH')) {
     exit;
 }
 
-class App_FSFacture extends AbstractClassFSFacture { 
+class App_FSFacture extends AbstractClassFSFacture {
     public $pdf_generate;
     public $acf_fields;
     public $xml_generate;
     public $margin_report;
     public $settings_page;
+    public $organization_directory;
     const PURCHASE_PRICE_META_KEY = '_purchase_price_without_vat';
 
     public function __construct() {
@@ -41,8 +43,9 @@ class App_FSFacture extends AbstractClassFSFacture {
         $this->xml_generate = new XML_FSFacture();
         $this->margin_report = new Margin_FSFacture();
         $this->settings_page = new Settings_FSFacture();
+        $this->organization_directory = new Organization_FSFacture();
 
-        
+
     }
 
     public function init_app() {
