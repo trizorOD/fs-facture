@@ -1,12 +1,28 @@
 (function($){
 
+    let currentOrganizationId = null;
+
+    function clearBuyerFields(container) {
+        container.find('.acf-field[data-name="buyer_organization"] textarea').val('');
+        container.find('.acf-field[data-name="buyer_nip"] input').val('');
+        container.find('.acf-field[data-name="buyer_country_code"] input').val('');
+        container.find('.acf-field[data-name="buyer_street"] input').val('');
+        container.find('.acf-field[data-name="buyer_city"] input').val('');
+        container.find('.acf-field[data-name="buyer_postal_code"] input').val('');
+    }
+
     jQuery(document).on('change', '.acf-field[data-name="buyer_organization_ref"] select', function(){
 
         const organizationId = $(this).val();
 
         const container = $(this).closest('.acf-field[data-name="buyer_group"]');
 
-        if (!organizationId) return;
+        currentOrganizationId = organizationId;
+
+        if (!organizationId) {
+            clearBuyerFields(container);
+            return;
+        }
 
         $.post(fsFactureOrganization.ajaxUrl, {
 
@@ -17,6 +33,13 @@
             organization_id: organizationId
 
         }, function(response) {
+
+            // A later selection may have already fired and changed
+            // currentOrganizationId while this request was in flight —
+            // discard a stale response so it can't overwrite newer data.
+            if (organizationId !== currentOrganizationId) {
+                return;
+            }
 
             if (response.success) {
 
