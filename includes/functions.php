@@ -129,13 +129,17 @@ add_action('admin_init', function () {
     $meta = get_post_meta($post_id);
 
     $data_fields = get_field('facture_group', $post_id);
-    update_post_meta($new_post_id, 'cloned_acf_data', $data_fields);
 
     foreach ($meta as $key => $values) {
         foreach ($values as $value) {
             update_post_meta($new_post_id, $key, maybe_unserialize($value));
         }
     }
+
+    // Set after the generic meta copy so a stale cloned_acf_data inherited
+    // from the source (when the source is itself a corrective facture)
+    // doesn't overwrite the correct "before" snapshot.
+    update_post_meta($new_post_id, 'cloned_acf_data', $data_fields);
 
     /*$taxonomies = get_object_taxonomies($post->post_type);
     foreach ($taxonomies as $taxonomy) {
