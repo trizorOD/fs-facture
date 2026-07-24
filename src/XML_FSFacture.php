@@ -155,6 +155,7 @@ class XML_FSFacture extends AbstractClassFSFacture {
         $vat_summary = [];
         $nr          = 1;
         $fa_rows_before = [];
+        $vat_summary_before = [];
 
         foreach ($products_list as $product) {
             if (empty($product['product_item_facture'])) {
@@ -242,6 +243,14 @@ class XML_FSFacture extends AbstractClassFSFacture {
                 }
 
                 $line_netto_before = round($quantity_before * $sale_price_before, 2);
+                $vat_num_before    = is_numeric(str_replace(',', '.', $vat_rate_before)) ? floatval(str_replace(',', '.', $vat_rate_before)) : null;
+                $vat_amount_before = ($vat_num_before !== null) ? round($line_netto_before * $vat_num_before / 100, 2) : 0.0;
+
+                if (!isset($vat_summary_before[$vat_rate_before])) {
+                    $vat_summary_before[$vat_rate_before] = ['netto' => 0.0, 'vat' => 0.0];
+                }
+                $vat_summary_before[$vat_rate_before]['netto'] += $line_netto_before;
+                $vat_summary_before[$vat_rate_before]['vat']   += $vat_amount_before;
 
                 $p12_value_map_b = [
                     '0 wdt' => '0 WDT',
@@ -260,6 +269,21 @@ class XML_FSFacture extends AbstractClassFSFacture {
                     'gtu'      => isset($product_before['gtu_product_item_facture']) ? (string) $product_before['gtu_product_item_facture'] : '',
                 ];
             }
+        }
+
+        // For a corrective invoice, KSeF header sums (P_13-P_15) must show the
+        // difference introduced by the correction (after minus before), not the
+        // full post-correction total — matching the PDF's "amount to settle".
+        if ($is_corrective && !empty($vat_summary_before)) {
+            $rates = array_unique(array_merge(array_keys($vat_summary), array_keys($vat_summary_before)));
+            $diffed_vat_summary = [];
+            foreach ($rates as $rate) {
+                $diffed_vat_summary[$rate] = [
+                    'netto' => round(($vat_summary[$rate]['netto'] ?? 0.0) - ($vat_summary_before[$rate]['netto'] ?? 0.0), 2),
+                    'vat'   => round(($vat_summary[$rate]['vat'] ?? 0.0) - ($vat_summary_before[$rate]['vat'] ?? 0.0), 2),
+                ];
+            }
+            $vat_summary = $diffed_vat_summary;
         }
 
         $total_brutto = 0.0;
