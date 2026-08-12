@@ -187,15 +187,17 @@ class KSeF_XML_Builder {
 
         $vat_groups = $this->calculate_vat_groups($products_list, $global_discount);
 
+        // Cloned (pre-correction) product state — needed both for the header VAT
+        // diff below and for the "before" FaWiersz rows appended further down.
+        $cloned_products_group  = $cloned_data['products_group'] ?? [];
+        $cloned_products_list   = $cloned_products_group['products_list'] ?? [];
+        $cloned_global_discount = isset($cloned_products_group['discount_to_all_products']) && $cloned_products_group['discount_to_all_products'] > 0
+            ? floatval($cloned_products_group['discount_to_all_products']) : 0;
+
         // For a corrective invoice, KSeF header sums (P_13-P_15) must show the
         // difference introduced by the correction (after minus before), not the
         // full post-correction total — matching the PDF's "amount to settle".
         if ($is_corrective && !empty($cloned_data)) {
-            $cloned_products_group = $cloned_data['products_group'] ?? [];
-            $cloned_products_list  = $cloned_products_group['products_list'] ?? [];
-            $cloned_global_discount = isset($cloned_products_group['discount_to_all_products']) && $cloned_products_group['discount_to_all_products'] > 0
-                ? floatval($cloned_products_group['discount_to_all_products']) : 0;
-
             $vat_groups_before = $this->calculate_vat_groups($cloned_products_list, $cloned_global_discount);
             $vat_groups = $this->diff_vat_groups($vat_groups, $vat_groups_before);
         }
@@ -227,7 +229,10 @@ class KSeF_XML_Builder {
         }
 
         // FaWiersz — line items
-        $this->append_fa_wiersze($dom, $fa, $products_list, $global_discount);
+        $this->append_fa_wiersze(
+            $dom, $fa, $products_list, $global_discount,
+            $is_corrective, $cloned_products_list, $cloned_global_discount, $post_id
+        );
 
         // Platnosc — payment terms
         $this->append_platnosc($dom, $fa, $payment, $general);
@@ -398,51 +403,123 @@ class KSeF_XML_Builder {
         \DOMDocument $dom,
         \DOMElement $fa,
         array $products_list,
-        float $global_discount
+        float $global_discount,
+        bool $is_corrective,
+        array $cloned_products_list,
+        float $cloned_global_discount,
+        int $post_id
     ): void {
-        foreach ($products_list as $key => $product) {
-            $wiersz = $dom->createElement('FaWiersz');
-            $fa->appendChild($wiersz);
+        $after_rows = $this->build_fa_rows($products_list, $global_discount);
 
-            $wiersz->appendChild($dom->createElement('NrWierszaFa', strval($key + 1)));
+        // Non-corrective invoice: just the current line items, as before.
+        if (!$is_corrective || empty($cloned_products_list)) {
+            foreach ($after_rows as $i => $row) {
+                $this->append_fa_wiersz_element($dom, $fa, $row, strval($i + 1), null, false);
+            }
+            return;
+        }
 
-            // P_7 — product / service name
+        // Corrective invoice: KSeF requires the pre-correction ("was") and
+        // post-correction ("is") state of each line, paired by NrWierszaFa/UU_ID
+        // and flagged via StanPrzed on the "was" row — otherwise KSeF renders
+        // the correction's product table as empty. KSeF's import expects all
+        // "before" rows grouped together, followed by all "after" rows —
+        // interleaving before/after per line breaks its parser silently.
+        $before_rows = $this->build_fa_rows($cloned_products_list, $cloned_global_discount);
+        $pairs = max(count($before_rows), count($after_rows));
+
+        for ($i = 0; $i < $pairs; $i++) {
+            if (isset($before_rows[$i])) {
+                $line_no = strval($i + 1);
+                $uu_id   = 'FS' . $post_id . '_' . $line_no;
+                $this->append_fa_wiersz_element($dom, $fa, $before_rows[$i], $line_no, $uu_id, true);
+            }
+        }
+
+        for ($i = 0; $i < $pairs; $i++) {
+            if (isset($after_rows[$i])) {
+                $line_no = strval($i + 1);
+                $uu_id   = 'FS' . $post_id . '_' . $line_no;
+                $this->append_fa_wiersz_element($dom, $fa, $after_rows[$i], $line_no, $uu_id, false);
+            }
+        }
+    }
+
+    /**
+     * Reduce a products_list ACF repeater to the flat fields needed per FaWiersz row.
+     */
+    private function build_fa_rows(array $products_list, float $global_discount): array {
+        $rows = [];
+
+        foreach ($products_list as $product) {
             $name = '';
             if (!empty($product['product_item_facture'])) {
                 $item = $product['product_item_facture'];
                 $name = is_object($item) ? $item->post_title : strval($item);
             }
-            $wiersz->appendChild($dom->createElement('P_7', $this->sanitize_text($name)));
 
-            // P_8A — unit of measure
-            $wiersz->appendChild($dom->createElement('P_8A', 'szt'));
-
-            // P_8B — quantity
+            $price    = floatval($product['price_product_item_facture'] ?? 0);
             $quantity = floatval($product['quantity_product_item_facture'] ?? 0);
-            $wiersz->appendChild($dom->createElement('P_8B', number_format($quantity, 6, '.', '')));
-
-            // P_9A — net unit price
-            $price = floatval($product['price_product_item_facture'] ?? 0);
-            $wiersz->appendChild($dom->createElement('P_9A', number_format($price, 2, '.', '')));
-
-            // P_10 — line-level discount amount (if any)
             $disc_pct = floatval($product['discount_product_item_facture'] ?? 0);
-            if ($disc_pct > 0) {
-                $discount_amt = $price * $disc_pct / 100;
-                $wiersz->appendChild($dom->createElement('P_10', number_format($discount_amt, 2, '.', '')));
-            }
+            $vat_rate = intval($product['vat_rate_product_item_facture'] ?? 0);
 
-            // P_11 — net line total after all discounts
-            $unit_after_disc = $price - ($price * $disc_pct / 100);
+            $discount_amt = $disc_pct > 0 ? $price * $disc_pct / 100 : 0.0;
+
+            $unit_after_disc = $price - $discount_amt;
             $net             = $quantity * $unit_after_disc;
             if ($global_discount > 0) {
                 $net -= $net * $global_discount / 100;
             }
-            $wiersz->appendChild($dom->createElement('P_11', $this->fmt_amount($net)));
 
-            // P_12 — VAT rate
-            $vat_rate = intval($product['vat_rate_product_item_facture'] ?? 0);
-            $wiersz->appendChild($dom->createElement('P_12', strval($vat_rate)));
+            $rows[] = [
+                'name'      => $name,
+                'quantity'  => $quantity,
+                'price'     => $price,
+                'discount'  => $discount_amt,
+                'net'       => $net,
+                'vat_rate'  => $vat_rate,
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Append a single FaWiersz element. When $uu_id is set, both UU_ID and
+     * (for the "before" row) StanPrzed are included so KSeF can pair the
+     * pre-/post-correction rows for the same line.
+     */
+    private function append_fa_wiersz_element(
+        \DOMDocument $dom,
+        \DOMElement $fa,
+        array $row,
+        string $line_no,
+        ?string $uu_id,
+        bool $is_before
+    ): void {
+        $wiersz = $dom->createElement('FaWiersz');
+        $fa->appendChild($wiersz);
+
+        $wiersz->appendChild($dom->createElement('NrWierszaFa', $line_no));
+
+        if ($uu_id !== null) {
+            $wiersz->appendChild($dom->createElement('UU_ID', $uu_id));
+        }
+
+        $wiersz->appendChild($dom->createElement('P_7', $this->sanitize_text($row['name'])));
+        $wiersz->appendChild($dom->createElement('P_8A', 'szt'));
+        $wiersz->appendChild($dom->createElement('P_8B', number_format($row['quantity'], 6, '.', '')));
+        $wiersz->appendChild($dom->createElement('P_9A', number_format($row['price'], 2, '.', '')));
+
+        if ($row['discount'] > 0) {
+            $wiersz->appendChild($dom->createElement('P_10', number_format($row['discount'], 2, '.', '')));
+        }
+
+        $wiersz->appendChild($dom->createElement('P_11', $this->fmt_amount($row['net'])));
+        $wiersz->appendChild($dom->createElement('P_12', strval($row['vat_rate'])));
+
+        if ($is_before) {
+            $wiersz->appendChild($dom->createElement('StanPrzed', '1'));
         }
     }
 

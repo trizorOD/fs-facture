@@ -431,47 +431,57 @@ class XML_FSFacture extends AbstractClassFSFacture {
             }
         }
 
-        // FaWiersz — FA(3) uses NrWierszaFa
+        // FaWiersz — FA(3) uses NrWierszaFa. KSeF's invoice import expects all
+        // "before" rows grouped together, followed by all "after" rows —
+        // interleaving before/after per line breaks its parser silently
+        // (product tables render empty with no error).
         if ($is_corrective && !empty($fa_rows_before)) {
             $pairs = max(count($fa_rows_before), count($fa_rows));
 
             for ($i = 0; $i < $pairs; $i++) {
+                if (!isset($fa_rows_before[$i])) {
+                    continue;
+                }
                 $line_no = (string) ($i + 1);
                 $uu_id = 'FS' . $facture->ID . '_' . $line_no;
 
-                if (isset($fa_rows_before[$i])) {
-                    $row_before = $fa_rows_before[$i];
-                    $wiersz_before = $this->el('FaWiersz');
-                    $fa->appendChild($wiersz_before);
-                    $wiersz_before->appendChild($this->el('NrWierszaFa', $line_no));
-                    $wiersz_before->appendChild($this->el('UU_ID', $uu_id));
-                    $wiersz_before->appendChild($this->el('P_7', $row_before['name']));
-                    $wiersz_before->appendChild($this->el('P_8A', 'szt.'));
-                    $wiersz_before->appendChild($this->el('P_8B', number_format($row_before['quantity'], 2, '.', '')));
-                    $wiersz_before->appendChild($this->el('P_9A', number_format($row_before['price'], 2, '.', '')));
-                    $wiersz_before->appendChild($this->el('P_11', number_format($row_before['netto'], 2, '.', '')));
-                    $wiersz_before->appendChild($this->el('P_12', $row_before['p12']));
-                    if (!empty($row_before['gtu'])) {
-                        $wiersz_before->appendChild($this->el('GTU', $row_before['gtu']));
-                    }
-                    $wiersz_before->appendChild($this->el('StanPrzed', '1'));
+                $row_before = $fa_rows_before[$i];
+                $wiersz_before = $this->el('FaWiersz');
+                $fa->appendChild($wiersz_before);
+                $wiersz_before->appendChild($this->el('NrWierszaFa', $line_no));
+                $wiersz_before->appendChild($this->el('UU_ID', $uu_id));
+                $wiersz_before->appendChild($this->el('P_7', $row_before['name']));
+                $wiersz_before->appendChild($this->el('P_8A', 'szt.'));
+                $wiersz_before->appendChild($this->el('P_8B', number_format($row_before['quantity'], 2, '.', '')));
+                $wiersz_before->appendChild($this->el('P_9A', number_format($row_before['price'], 2, '.', '')));
+                $wiersz_before->appendChild($this->el('P_11', number_format($row_before['netto'], 2, '.', '')));
+                $wiersz_before->appendChild($this->el('P_12', $row_before['p12']));
+                if (!empty($row_before['gtu'])) {
+                    $wiersz_before->appendChild($this->el('GTU', $row_before['gtu']));
                 }
+                $wiersz_before->appendChild($this->el('StanPrzed', '1'));
+            }
 
-                if (isset($fa_rows[$i])) {
-                    $row_after = $fa_rows[$i];
-                    $wiersz_after = $this->el('FaWiersz');
-                    $fa->appendChild($wiersz_after);
-                    $wiersz_after->appendChild($this->el('NrWierszaFa', $line_no));
-                    $wiersz_after->appendChild($this->el('UU_ID', $uu_id));
-                    $wiersz_after->appendChild($this->el('P_7', $row_after['name']));
-                    $wiersz_after->appendChild($this->el('P_8A', 'szt.'));
-                    $wiersz_after->appendChild($this->el('P_8B', number_format($row_after['quantity'], 2, '.', '')));
-                    $wiersz_after->appendChild($this->el('P_9A', number_format($row_after['price'], 2, '.', '')));
-                    $wiersz_after->appendChild($this->el('P_11', number_format($row_after['netto'], 2, '.', '')));
-                    $wiersz_after->appendChild($this->el('P_12', $row_after['p12']));
-                    if (!empty($row_after['gtu'])) {
-                        $wiersz_after->appendChild($this->el('GTU', $row_after['gtu']));
-                    }
+            for ($i = 0; $i < $pairs; $i++) {
+                if (!isset($fa_rows[$i])) {
+                    continue;
+                }
+                $line_no = (string) ($i + 1);
+                $uu_id = 'FS' . $facture->ID . '_' . $line_no;
+
+                $row_after = $fa_rows[$i];
+                $wiersz_after = $this->el('FaWiersz');
+                $fa->appendChild($wiersz_after);
+                $wiersz_after->appendChild($this->el('NrWierszaFa', $line_no));
+                $wiersz_after->appendChild($this->el('UU_ID', $uu_id));
+                $wiersz_after->appendChild($this->el('P_7', $row_after['name']));
+                $wiersz_after->appendChild($this->el('P_8A', 'szt.'));
+                $wiersz_after->appendChild($this->el('P_8B', number_format($row_after['quantity'], 2, '.', '')));
+                $wiersz_after->appendChild($this->el('P_9A', number_format($row_after['price'], 2, '.', '')));
+                $wiersz_after->appendChild($this->el('P_11', number_format($row_after['netto'], 2, '.', '')));
+                $wiersz_after->appendChild($this->el('P_12', $row_after['p12']));
+                if (!empty($row_after['gtu'])) {
+                    $wiersz_after->appendChild($this->el('GTU', $row_after['gtu']));
                 }
             }
         } else {
