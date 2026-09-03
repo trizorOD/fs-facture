@@ -21,6 +21,7 @@ class App_FSFacture extends AbstractClassFSFacture {
     public $margin_report;
     public $settings_page;
     public $organization_directory;
+    public $dotypos_csv;
     const PURCHASE_PRICE_META_KEY = '_purchase_price_without_vat';
 
     public function __construct() {
@@ -45,7 +46,9 @@ class App_FSFacture extends AbstractClassFSFacture {
         $this->settings_page = new Settings_FSFacture();
         $this->organization_directory = new Organization_FSFacture();
 
-
+        if (class_exists('DWP_API')) {
+            $this->dotypos_csv = new DotyposCSV_FSFacture();
+        }
     }
 
     public function init_app() {

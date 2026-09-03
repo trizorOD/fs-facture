@@ -240,6 +240,11 @@ class PDF_FSFacture extends AbstractClassFSFacture {
                     echo '<p><a href="' . esc_url($url_clone) . '&download=yes&facture_id='.$this->get('post').'" class="button button-primary" target="_blank">Corrective Facture</a></p>';
                 }
 
+                if (class_exists('DWP_API')) {
+                    echo '<p><button type="button" id="fs-facture-download-csv" class="button button-secondary" data-facture-id="' . absint($this->get('post')) . '">Download CSV</button></p>';
+                    echo '<p id="fs-facture-csv-message" style="display:none;margin-top:4px;font-size:12px;"></p>';
+                }
+
             echo "</div>";
 
         }

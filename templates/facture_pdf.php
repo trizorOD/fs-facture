@@ -47,7 +47,7 @@
 
             if(
 
-                check_data_arr('discount_product_item_facture', $product) &&
+                isset($product['discount_product_item_facture']) &&
 
                 check_data_arr('price_product_item_facture', $product) &&
 
@@ -137,7 +137,7 @@
         foreach($products_list_cloned as $product_key => $product) {
             $sale_price = $product['price_product_item_facture'];
             if(
-                check_data_arr('discount_product_item_facture', $product) &&
+                isset($product['discount_product_item_facture']) &&
                 check_data_arr('price_product_item_facture', $product) &&
                 check_data_arr('quantity_product_item_facture', $product)
 

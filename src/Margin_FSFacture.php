@@ -249,6 +249,7 @@ class Margin_FSFacture extends AbstractClassFSFacture {
 
         $facture_ids = Buyer_Data_Helper::get_facture_ids();
         $corrected_facture_signatures = $this->get_corrected_facture_signatures($facture_ids);
+        $original_facture_dates = $this->get_original_facture_dates($facture_ids);
 
         foreach ($facture_ids as $post_id) {
             $facture = get_post($post_id);
@@ -262,7 +263,7 @@ class Margin_FSFacture extends AbstractClassFSFacture {
             $buyer_group = isset($facture_data['buyer_group']) && is_array($facture_data['buyer_group'])
                 ? $facture_data['buyer_group']
                 : [];
-            $facture_date = Buyer_Data_Helper::get_facture_date($facture, $facture_data);
+            $facture_date = $this->get_report_facture_date($facture, $facture_data, $original_facture_dates);
 
             if ($facture->post_status !== 'facture_corrective') {
                 $facture_signature = $this->get_facture_signature($facture, $facture_data);
@@ -593,6 +594,70 @@ class Margin_FSFacture extends AbstractClassFSFacture {
         }
 
         return $signatures;
+    }
+
+    /**
+     * Maps each non-corrective facture's signature to its own facture date,
+     * so corrective factures can look up the date of the invoice they correct.
+     */
+    private function get_original_facture_dates($facture_ids) {
+        $dates = [];
+
+        foreach ($facture_ids as $post_id) {
+            $facture = get_post($post_id);
+
+            if (!$facture || $facture->post_status === 'facture_corrective') {
+                continue;
+            }
+
+            $facture_data = Buyer_Data_Helper::get_facture_data($post_id);
+            if (empty($facture_data)) {
+                continue;
+            }
+
+            $signature = $this->get_facture_signature($facture, $facture_data);
+            if ($signature !== '') {
+                $dates[$signature] = Buyer_Data_Helper::get_facture_date($facture, $facture_data);
+            }
+        }
+
+        return $dates;
+    }
+
+    /**
+     * A corrective facture should be reported under the date of the invoice
+     * it corrects, not its own creation date.
+     */
+    private function get_report_facture_date($facture, $facture_data, $original_facture_dates) {
+        if (!$facture) {
+            return '';
+        }
+
+        if ($facture->post_status !== 'facture_corrective') {
+            return Buyer_Data_Helper::get_facture_date($facture, $facture_data);
+        }
+
+        $original_data = get_post_meta($facture->ID, 'cloned_acf_data', true);
+        if (is_array($original_data) && !empty($original_data)) {
+            $original_signature = $this->get_facture_signature($facture, $original_data);
+
+            if ($original_signature !== '' && isset($original_facture_dates[$original_signature])) {
+                return $original_facture_dates[$original_signature];
+            }
+
+            $general_group = isset($original_data['general_group']) && is_array($original_data['general_group'])
+                ? $original_data['general_group']
+                : [];
+            $original_date = !empty($general_group['general_facture_date'])
+                ? Buyer_Data_Helper::normalize_date($general_group['general_facture_date'])
+                : '';
+
+            if ($original_date !== '') {
+                return $original_date;
+            }
+        }
+
+        return Buyer_Data_Helper::get_facture_date($facture, $facture_data);
     }
 
     private function get_facture_signature($facture, $facture_data) {

@@ -143,19 +143,11 @@ class XML_FSFacture extends AbstractClassFSFacture {
         $global_discount = (isset($products_group['discount_to_all_products']) && $products_group['discount_to_all_products'] > 0)
             ? floatval($products_group['discount_to_all_products'])
             : 0;
-        $cloned_products_group = ($is_corrective && !empty($cloned_data))
-            ? (get_data_arr('products_group', $cloned_data) ?: [])
-            : [];
-        $cloned_global_discount = (isset($cloned_products_group['discount_to_all_products']) && $cloned_products_group['discount_to_all_products'] > 0)
-            ? floatval($cloned_products_group['discount_to_all_products'])
-            : 0;
 
         // --- Wiersze + sumy wg stawki ---
         $fa_rows     = [];
         $vat_summary = [];
         $nr          = 1;
-        $fa_rows_before = [];
-        $vat_summary_before = [];
 
         foreach ($products_list as $product) {
             if (empty($product['product_item_facture'])) {
@@ -212,80 +204,11 @@ class XML_FSFacture extends AbstractClassFSFacture {
             $vat_summary[$vat_rate]['vat']   += $vat_amount;
         }
 
-        if ($is_corrective && !empty($cloned_products_group)) {
-            $products_list_before = get_data_arr('products_list', $cloned_products_group) ?: [];
-            $before_nr = 1;
-
-            foreach ($products_list_before as $product_before) {
-                if (empty($product_before['product_item_facture'])) {
-                    continue;
-                }
-
-                $product_name_before = is_object($product_before['product_item_facture'])
-                    ? $product_before['product_item_facture']->post_title
-                    : get_the_title((int) $product_before['product_item_facture']);
-
-                $price_before      = floatval($product_before['price_product_item_facture'] ?? 0);
-                $quantity_before   = floatval($product_before['quantity_product_item_facture'] ?? 0);
-                $item_disc_before  = floatval($product_before['discount_product_item_facture'] ?? 0);
-                $vat_rate_raw_b    = strval($product_before['vat_rate_product_item_facture'] ?? '23');
-                $vat_rate_before   = trim(preg_replace('/\s+/', ' ', strtolower($vat_rate_raw_b)));
-                if ($vat_rate_before === 'zw.') {
-                    $vat_rate_before = 'zw';
-                }
-
-                $sale_price_before = $item_disc_before > 0
-                    ? round($price_before - ($price_before * $item_disc_before / 100), 2)
-                    : $price_before;
-
-                if ($cloned_global_discount > 0) {
-                    $sale_price_before = round($sale_price_before - ($sale_price_before * $cloned_global_discount / 100), 2);
-                }
-
-                $line_netto_before = round($quantity_before * $sale_price_before, 2);
-                $vat_num_before    = is_numeric(str_replace(',', '.', $vat_rate_before)) ? floatval(str_replace(',', '.', $vat_rate_before)) : null;
-                $vat_amount_before = ($vat_num_before !== null) ? round($line_netto_before * $vat_num_before / 100, 2) : 0.0;
-
-                if (!isset($vat_summary_before[$vat_rate_before])) {
-                    $vat_summary_before[$vat_rate_before] = ['netto' => 0.0, 'vat' => 0.0];
-                }
-                $vat_summary_before[$vat_rate_before]['netto'] += $line_netto_before;
-                $vat_summary_before[$vat_rate_before]['vat']   += $vat_amount_before;
-
-                $p12_value_map_b = [
-                    '0 wdt' => '0 WDT',
-                    '0 ex'  => '0 EX',
-                    'zw'    => 'zw',
-                ];
-                $p12_value_before = $p12_value_map_b[$vat_rate_before] ?? $vat_rate_raw_b;
-
-                $fa_rows_before[] = [
-                    'nr'       => $before_nr++,
-                    'name'     => $product_name_before,
-                    'quantity' => $quantity_before,
-                    'price'    => $price_before,
-                    'netto'    => $line_netto_before,
-                    'p12'      => $p12_value_before,
-                    'gtu'      => isset($product_before['gtu_product_item_facture']) ? (string) $product_before['gtu_product_item_facture'] : '',
-                ];
-            }
-        }
-
-        // For a corrective invoice, KSeF header sums (P_13-P_15) must show the
-        // difference introduced by the correction (after minus before), not the
-        // full post-correction total — matching the PDF's "amount to settle".
-        if ($is_corrective && !empty($vat_summary_before)) {
-            $rates = array_unique(array_merge(array_keys($vat_summary), array_keys($vat_summary_before)));
-            $diffed_vat_summary = [];
-            foreach ($rates as $rate) {
-                $diffed_vat_summary[$rate] = [
-                    'netto' => round(($vat_summary[$rate]['netto'] ?? 0.0) - ($vat_summary_before[$rate]['netto'] ?? 0.0), 2),
-                    'vat'   => round(($vat_summary[$rate]['vat'] ?? 0.0) - ($vat_summary_before[$rate]['vat'] ?? 0.0), 2),
-                ];
-            }
-            $vat_summary = $diffed_vat_summary;
-        }
-
+        // KSeF recomputes P_13-P_15 itself from the sum of every FaWiersz row
+        // in the document — it does not net a StanPrzed "before" row against
+        // its "after" counterpart, it adds both magnitudes. So a corrective
+        // invoice must only ever list its own current product rows (whatever
+        // sign they carry), never a duplicated "before" state.
         $total_brutto = 0.0;
         foreach ($vat_summary as $s) {
             $total_brutto += round($s['netto'] + $s['vat'], 2);
@@ -431,64 +354,21 @@ class XML_FSFacture extends AbstractClassFSFacture {
             }
         }
 
-        // FaWiersz — FA(3) uses NrWierszaFa
-        if ($is_corrective && !empty($fa_rows_before)) {
-            $pairs = max(count($fa_rows_before), count($fa_rows));
+        // FaWiersz — FA(3) uses NrWierszaFa. Always the current product rows
+        // only (see note above the totals block for why no "before" rows).
+        foreach ($fa_rows as $row) {
+            $wiersz = $this->el('FaWiersz');
+            $fa->appendChild($wiersz);
 
-            for ($i = 0; $i < $pairs; $i++) {
-                $line_no = (string) ($i + 1);
-                $uu_id = 'FS' . $facture->ID . '_' . $line_no;
-
-                if (isset($fa_rows_before[$i])) {
-                    $row_before = $fa_rows_before[$i];
-                    $wiersz_before = $this->el('FaWiersz');
-                    $fa->appendChild($wiersz_before);
-                    $wiersz_before->appendChild($this->el('NrWierszaFa', $line_no));
-                    $wiersz_before->appendChild($this->el('UU_ID', $uu_id));
-                    $wiersz_before->appendChild($this->el('P_7', $row_before['name']));
-                    $wiersz_before->appendChild($this->el('P_8A', 'szt.'));
-                    $wiersz_before->appendChild($this->el('P_8B', number_format($row_before['quantity'], 2, '.', '')));
-                    $wiersz_before->appendChild($this->el('P_9A', number_format($row_before['price'], 2, '.', '')));
-                    $wiersz_before->appendChild($this->el('P_11', number_format($row_before['netto'], 2, '.', '')));
-                    $wiersz_before->appendChild($this->el('P_12', $row_before['p12']));
-                    if (!empty($row_before['gtu'])) {
-                        $wiersz_before->appendChild($this->el('GTU', $row_before['gtu']));
-                    }
-                    $wiersz_before->appendChild($this->el('StanPrzed', '1'));
-                }
-
-                if (isset($fa_rows[$i])) {
-                    $row_after = $fa_rows[$i];
-                    $wiersz_after = $this->el('FaWiersz');
-                    $fa->appendChild($wiersz_after);
-                    $wiersz_after->appendChild($this->el('NrWierszaFa', $line_no));
-                    $wiersz_after->appendChild($this->el('UU_ID', $uu_id));
-                    $wiersz_after->appendChild($this->el('P_7', $row_after['name']));
-                    $wiersz_after->appendChild($this->el('P_8A', 'szt.'));
-                    $wiersz_after->appendChild($this->el('P_8B', number_format($row_after['quantity'], 2, '.', '')));
-                    $wiersz_after->appendChild($this->el('P_9A', number_format($row_after['price'], 2, '.', '')));
-                    $wiersz_after->appendChild($this->el('P_11', number_format($row_after['netto'], 2, '.', '')));
-                    $wiersz_after->appendChild($this->el('P_12', $row_after['p12']));
-                    if (!empty($row_after['gtu'])) {
-                        $wiersz_after->appendChild($this->el('GTU', $row_after['gtu']));
-                    }
-                }
-            }
-        } else {
-            foreach ($fa_rows as $row) {
-                $wiersz = $this->el('FaWiersz');
-                $fa->appendChild($wiersz);
-
-                $wiersz->appendChild($this->el('NrWierszaFa', (string) $row['nr']));
-                $wiersz->appendChild($this->el('P_7', $row['name']));
-                $wiersz->appendChild($this->el('P_8A', 'szt.'));
-                $wiersz->appendChild($this->el('P_8B', number_format($row['quantity'], 2, '.', '')));
-                $wiersz->appendChild($this->el('P_9A', number_format($row['price'], 2, '.', '')));
-                $wiersz->appendChild($this->el('P_11', number_format($row['netto'], 2, '.', '')));
-                $wiersz->appendChild($this->el('P_12', $row['p12']));
-                if (!empty($row['gtu'])) {
-                    $wiersz->appendChild($this->el('GTU', $row['gtu']));
-                }
+            $wiersz->appendChild($this->el('NrWierszaFa', (string) $row['nr']));
+            $wiersz->appendChild($this->el('P_7', $row['name']));
+            $wiersz->appendChild($this->el('P_8A', 'szt.'));
+            $wiersz->appendChild($this->el('P_8B', number_format($row['quantity'], 2, '.', '')));
+            $wiersz->appendChild($this->el('P_9A', number_format($row['price'], 2, '.', '')));
+            $wiersz->appendChild($this->el('P_11', number_format($row['netto'], 2, '.', '')));
+            $wiersz->appendChild($this->el('P_12', $row['p12']));
+            if (!empty($row['gtu'])) {
+                $wiersz->appendChild($this->el('GTU', $row['gtu']));
             }
         }
 

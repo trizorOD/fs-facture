@@ -1,4 +1,4 @@
-.pdf-buttons-download a {
+.pdf-buttons-download a, .pdf-buttons-download button {
     width:100%;
     text-align:center;
 }

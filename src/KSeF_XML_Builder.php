@@ -185,22 +185,33 @@ class KSeF_XML_Builder {
         $global_discount = isset($products_group['discount_to_all_products']) && $products_group['discount_to_all_products'] > 0
             ? floatval($products_group['discount_to_all_products']) : 0;
 
-        $vat_groups = $this->calculate_vat_groups($products_list, $global_discount);
-
-        // For a corrective invoice, KSeF header sums (P_13-P_15) must show the
-        // difference introduced by the correction (after minus before), not the
-        // full post-correction total — matching the PDF's "amount to settle".
-        if ($is_corrective && !empty($cloned_data)) {
-            $cloned_products_group = $cloned_data['products_group'] ?? [];
-            $cloned_products_list  = $cloned_products_group['products_list'] ?? [];
-            $cloned_global_discount = isset($cloned_products_group['discount_to_all_products']) && $cloned_products_group['discount_to_all_products'] > 0
-                ? floatval($cloned_products_group['discount_to_all_products']) : 0;
-
-            $vat_groups_before = $this->calculate_vat_groups($cloned_products_list, $cloned_global_discount);
-            $vat_groups = $this->diff_vat_groups($vat_groups, $vat_groups_before);
-        }
-
+        $vat_groups  = [];
         $total_gross = 0.0;
+
+        foreach ($products_list as $product) {
+            $price     = floatval($product['price_product_item_facture'] ?? 0);
+            $quantity  = floatval($product['quantity_product_item_facture'] ?? 0);
+            $disc_pct  = floatval($product['discount_product_item_facture'] ?? 0);
+            $vat_rate  = intval($product['vat_rate_product_item_facture'] ?? 0);
+
+            $unit_after_disc = $price - ($price * $disc_pct / 100);
+            $net             = $quantity * $unit_after_disc;
+
+            if ($global_discount > 0) {
+                $net -= $net * $global_discount / 100;
+            }
+
+            $net     = round($net, 2);
+            $vat_amt = round($net * $vat_rate / 100, 2);
+            $gross   = $net + $vat_amt;
+
+            if (!isset($vat_groups[$vat_rate])) {
+                $vat_groups[$vat_rate] = ['net' => 0.0, 'vat' => 0.0];
+            }
+            $vat_groups[$vat_rate]['net'] += $net;
+            $vat_groups[$vat_rate]['vat'] += $vat_amt;
+            $total_gross += $gross;
+        }
 
         // Append P_13_x / P_14_x per VAT rate
         foreach ($vat_groups as $rate => $amounts) {
@@ -209,7 +220,6 @@ class KSeF_XML_Builder {
                 $fa->appendChild($dom->createElement('P_13_' . $idx, $this->fmt_amount($amounts['net'])));
                 $fa->appendChild($dom->createElement('P_14_' . $idx, $this->fmt_amount($amounts['vat'])));
             }
-            $total_gross += $amounts['net'] + $amounts['vat'];
         }
 
         // P_15 — total gross
@@ -231,57 +241,6 @@ class KSeF_XML_Builder {
 
         // Platnosc — payment terms
         $this->append_platnosc($dom, $fa, $payment, $general);
-    }
-
-    // ─── VAT totals ─────────────────────────────────────────────────────────
-
-    /**
-     * Sums net/VAT amounts per VAT rate for a list of product line items.
-     */
-    private function calculate_vat_groups(array $products_list, float $global_discount): array {
-        $vat_groups = [];
-
-        foreach ($products_list as $product) {
-            $price     = floatval($product['price_product_item_facture'] ?? 0);
-            $quantity  = floatval($product['quantity_product_item_facture'] ?? 0);
-            $disc_pct  = floatval($product['discount_product_item_facture'] ?? 0);
-            $vat_rate  = intval($product['vat_rate_product_item_facture'] ?? 0);
-
-            $unit_after_disc = $price - ($price * $disc_pct / 100);
-            $net             = $quantity * $unit_after_disc;
-
-            if ($global_discount > 0) {
-                $net -= $net * $global_discount / 100;
-            }
-
-            $net     = round($net, 2);
-            $vat_amt = round($net * $vat_rate / 100, 2);
-
-            if (!isset($vat_groups[$vat_rate])) {
-                $vat_groups[$vat_rate] = ['net' => 0.0, 'vat' => 0.0];
-            }
-            $vat_groups[$vat_rate]['net'] += $net;
-            $vat_groups[$vat_rate]['vat'] += $vat_amt;
-        }
-
-        return $vat_groups;
-    }
-
-    /**
-     * Per-rate (after minus before) difference, used for corrective invoice
-     * header sums. Includes rates present in only one side.
-     */
-    private function diff_vat_groups(array $after, array $before): array {
-        $diff = [];
-
-        foreach (array_unique(array_merge(array_keys($after), array_keys($before))) as $rate) {
-            $diff[$rate] = [
-                'net' => round(($after[$rate]['net'] ?? 0.0) - ($before[$rate]['net'] ?? 0.0), 2),
-                'vat' => round(($after[$rate]['vat'] ?? 0.0) - ($before[$rate]['vat'] ?? 0.0), 2),
-            ];
-        }
-
-        return $diff;
     }
 
     // ─── Adnotacje ────────────────────────────────────────────────────────────
