@@ -131,6 +131,26 @@
     line-height: calc(var(--fs-control-height) - 2px);
 }
 
+.fs-margin-exclude-field {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.fs-margin-exclude-field span {
+    color: #646970;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.fs-margin-exclude-field input {
+    width: 180px;
+    min-height: var(--fs-control-height);
+    border-color: var(--fs-control-border);
+    border-radius: var(--fs-control-radius);
+    line-height: calc(var(--fs-control-height) - 2px);
+}
+
 .fs-margin-checkbox-field {
     display: inline-flex !important;
     align-items: center;

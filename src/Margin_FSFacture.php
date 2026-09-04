@@ -119,6 +119,10 @@ class Margin_FSFacture extends AbstractClassFSFacture {
                         <input type="checkbox" id="fs-margin-import-only" value="1">
                         <span><?php esc_html_e('Only import products', 'fs-facture'); ?></span>
                     </label>
+                    <div class="fs-margin-exclude-field">
+                        <span><?php esc_html_e('Exclude facture IDs', 'fs-facture'); ?></span>
+                        <input type="text" id="fs-margin-exclude-ids" placeholder="<?php esc_attr_e('e.g. 123, 456', 'fs-facture'); ?>">
+                    </div>
                     <button type="button" class="button button-primary" id="fs-margin-run">
                         <?php esc_html_e('Build report', 'fs-facture'); ?>
                     </button>
@@ -179,8 +183,12 @@ class Margin_FSFacture extends AbstractClassFSFacture {
             ? sanitize_text_field(wp_unslash($_POST['date_to']))
             : '';
         $import_only = !empty($_POST['import_only']);
+        $exclude_ids_raw = isset($_POST['exclude_ids'])
+            ? sanitize_text_field(wp_unslash($_POST['exclude_ids']))
+            : '';
+        $exclude_ids = $this->parse_exclude_ids($exclude_ids_raw);
 
-        $report = $this->build_margin_report($organization, $date_from, $date_to, $import_only);
+        $report = $this->build_margin_report($organization, $date_from, $date_to, $import_only, $exclude_ids);
 
         wp_send_json_success($report);
     }
@@ -231,7 +239,16 @@ class Margin_FSFacture extends AbstractClassFSFacture {
         return array_values($groups);
     }
 
-    private function build_margin_report($organization = '', $date_from = '', $date_to = '', $import_only = false) {
+    private function parse_exclude_ids($raw) {
+        $ids = array_map('trim', explode(',', (string) $raw));
+        $ids = array_filter($ids, function ($id) {
+            return $id !== '';
+        });
+
+        return array_fill_keys(array_map('strtolower', $ids), true);
+    }
+
+    private function build_margin_report($organization = '', $date_from = '', $date_to = '', $import_only = false, $exclude_ids = []) {
         $factures = [];
         $facture_count = 0;
         $line_count = 0;
@@ -257,6 +274,15 @@ class Margin_FSFacture extends AbstractClassFSFacture {
 
             if (!$facture || empty($facture_data)) {
                 $skipped_factures++;
+                continue;
+            }
+
+            $invoice_number = $this->get_invoice_number($facture, $facture_data);
+
+            if (
+                isset($exclude_ids[strtolower((string) $post_id)])
+                || ($invoice_number !== '' && isset($exclude_ids[strtolower($invoice_number)]))
+            ) {
                 continue;
             }
 
@@ -295,7 +321,6 @@ class Margin_FSFacture extends AbstractClassFSFacture {
                 continue;
             }
 
-            $invoice_number = $this->get_invoice_number($facture, $facture_data);
             $buyer_label = isset($buyer_group['buyer_organization'])
                 ? Buyer_Data_Helper::normalize_organization_label($buyer_group['buyer_organization'])
                 : '';

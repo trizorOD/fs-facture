@@ -9,6 +9,7 @@
     const $dateFrom = $('#fs-margin-date-from');
     const $dateTo = $('#fs-margin-date-to');
     const $importOnly = $('#fs-margin-import-only');
+    const $excludeIds = $('#fs-margin-exclude-ids');
     const $loader = $('#fs-margin-loader');
     const $message = $('#fs-margin-message');
     const $summary = $('#fs-margin-summary');
@@ -263,6 +264,7 @@
             date_from: $dateFrom.val(),
             date_to: $dateTo.val(),
             import_only: $importOnly.is(':checked') ? 1 : 0,
+            exclude_ids: $excludeIds.val(),
         }).done(function(response) {
             if (!response || !response.success) {
                 renderMessage((response && response.data && response.data.message) || fsFactureMargin.i18n.error, true);
