@@ -195,9 +195,28 @@ class Margin_FSFacture extends AbstractClassFSFacture {
 
     private function get_buyer_organization_groups() {
         $groups = [];
+        $facture_ids = Buyer_Data_Helper::get_facture_ids();
+        $corrected_facture_signatures = $this->get_corrected_facture_signatures($facture_ids);
 
-        foreach (Buyer_Data_Helper::get_facture_ids() as $post_id) {
+        foreach ($facture_ids as $post_id) {
+            $facture = get_post($post_id);
             $facture_data = Buyer_Data_Helper::get_facture_data($post_id);
+
+            if (!$facture || empty($facture_data)) {
+                continue;
+            }
+
+            // A corrected original often carries the buyer typo that caused it to be
+            // corrected in the first place (e.g. wrong organization name). Skip it
+            // here the same way the report does, so stale typos don't show up as
+            // "variants" of a buyer that were already fixed via a corrective facture.
+            if ($facture->post_status !== 'facture_corrective') {
+                $facture_signature = $this->get_facture_signature($facture, $facture_data);
+                if ($facture_signature !== '' && isset($corrected_facture_signatures[$facture_signature])) {
+                    continue;
+                }
+            }
+
             $buyer_group = isset($facture_data['buyer_group']) && is_array($facture_data['buyer_group'])
                 ? $facture_data['buyer_group']
                 : [];
