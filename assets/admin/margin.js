@@ -108,10 +108,9 @@
             return '<div><span>' + escapeHtml(block[0]) + '</span><p>' + escapeHtml(block[1].join(' | ')) + '</p></div>';
         }).join('');
 
-        const facturePreview = factures.slice(0, 8).map(function(item) {
+        const facturePreview = factures.map(function(item) {
             return escapeHtml(item.invoice + (item.date ? ' (' + item.date + ')' : ''));
         }).join(', ');
-        const factureMore = factures.length > 8 ? ' +' + (factures.length - 8) : '';
         const dateText = (dateRange.from || dateRange.to)
             ? escapeHtml((dateRange.from || '...') + ' - ' + (dateRange.to || '...'))
             : 'All dates';
@@ -119,7 +118,7 @@
         $details.html(
             '<div><span>Date range</span><p>' + dateText + '</p></div>' +
             detailBlocks +
-            (factures.length ? '<div><span>Included factures</span><p>' + facturePreview + escapeHtml(factureMore) + '</p></div>' : '')
+            (factures.length ? '<div><span>Included factures</span><p>' + facturePreview + '</p></div>' : '')
         ).prop('hidden', false);
     }
 
