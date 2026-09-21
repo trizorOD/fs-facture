@@ -218,10 +218,6 @@ class Margin_FSFacture extends AbstractClassFSFacture {
                 ];
             }
 
-            if (strlen($organization) < strlen($groups[$group_key]['label'])) {
-                $groups[$group_key]['label'] = $organization;
-            }
-
             $groups[$group_key]['variants'][$organization] = $organization;
             $groups[$group_key]['facture_count']++;
         }
@@ -230,6 +226,11 @@ class Margin_FSFacture extends AbstractClassFSFacture {
             ksort($groups[$key]['variants'], SORT_NATURAL | SORT_FLAG_CASE);
             $groups[$key]['variants'] = array_values($groups[$key]['variants']);
             $groups[$key]['variant_count'] = count($groups[$key]['variants']);
+            // Different organization names sharing one group key usually mean a
+            // wrong NIP was copied onto another buyer's facture. Show every name
+            // instead of silently picking one, so the mismatch is visible and the
+            // buyer is still findable by any of the names.
+            $groups[$key]['label'] = implode(' / ', $groups[$key]['variants']);
         }
 
         uasort($groups, function ($a, $b) {
